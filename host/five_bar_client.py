@@ -42,12 +42,14 @@ def repl(ser):
             raw = input("> ").strip()
         except (EOFError, KeyboardInterrupt):
             print()
+            send(ser, "R")
             return
         if not raw:
             continue
         parts = raw.split()
         cmd = parts[0].lower()
         if cmd in ("quit", "exit", "q"):
+            send(ser, "R")
             return
         if cmd == "move" and len(parts) == 3:
             send(ser, f"M {parts[1]} {parts[2]}")
@@ -55,12 +57,14 @@ def repl(ser):
             send(ser, "H")
         elif cmd == "status":
             send(ser, "S")
+        elif cmd == "release":
+            send(ser, "R")
         elif cmd == "raw" and len(parts) >= 2:
             send(ser, raw[len("raw "):])
         elif cmd == "?":
             send(ser, "?")
         else:
-            print("usage: move <x> <y> | home | status | raw <line> | ? | quit")
+            print("usage: move <x> <y> | home | status | release | raw <line> | ? | quit")
 
 
 def main():

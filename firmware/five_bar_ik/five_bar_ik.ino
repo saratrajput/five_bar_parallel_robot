@@ -27,8 +27,8 @@ const float L2 = 50.0;        // distal link length
 const float BASE_D = 77.144;  // distance between the two motor axes
 
 // ---- Servo wiring --------------------------------------------------------
-const uint8_t SERVO_PIN_LEFT  = 9;   // motor at (-BASE_D/2, 0)
-const uint8_t SERVO_PIN_RIGHT = 10;  // motor at (+BASE_D/2, 0)
+const uint8_t SERVO_PIN_LEFT  = 4;   // motor at (-BASE_D/2, 0)
+const uint8_t SERVO_PIN_RIGHT = 5;   // motor at (+BASE_D/2, 0)
 
 // ---- Servo mapping -------------------------------------------------------
 // Maps IK angle theta (radians, measured CCW from +x) to servo command (deg):
@@ -44,7 +44,6 @@ const int SERVO_MAX_DEG = 175;
 
 // ---- Motion --------------------------------------------------------------
 const int   STEP_DELAY_MS = 8;   // delay per 1-degree step in moveSmooth()
-const float Y_HOME = 65.0;       // home pose end-effector y (above midline)
 
 // --------------------------------------------------------------------------
 
@@ -53,6 +52,23 @@ Servo servoRight;
 
 float lastServo1Deg = 90.0;
 float lastServo2Deg = 90.0;
+bool servosAttached = false;
+
+void attachServos() {
+  if (servosAttached) return;
+  servoLeft.attach(SERVO_PIN_LEFT);
+  servoRight.attach(SERVO_PIN_RIGHT);
+  servoLeft.write((int)round(lastServo1Deg));
+  servoRight.write((int)round(lastServo2Deg));
+  servosAttached = true;
+}
+
+void releaseServos() {
+  if (!servosAttached) return;
+  servoLeft.detach();
+  servoRight.detach();
+  servosAttached = false;
+}
 
 bool solveIK(float x, float y, float &th1, float &th2) {
   const float a1x = -BASE_D / 2.0;
@@ -114,6 +130,7 @@ bool moveToXY(float x, float y, float &out_s1, float &out_s2) {
   bool ok1 = clampServo(s1);
   bool ok2 = clampServo(s2);
   if (!ok1 || !ok2) return false;
+  attachServos();
   moveSmooth(s1, s2);
   out_s1 = s1;
   out_s2 = s2;
@@ -121,15 +138,14 @@ bool moveToXY(float x, float y, float &out_s1, float &out_s2) {
 }
 
 void goHome() {
-  float s1, s2;
-  if (!moveToXY(0.0, Y_HOME, s1, s2)) {
-    // Fall back to mechanical home if Y_HOME is unreachable with current geometry.
-    moveSmooth(THETA1_OFFSET_DEG, THETA2_OFFSET_DEG);
-  }
+  // Home = reference pose: both arms vertical (theta1 = theta2 = pi/2).
+  // By the servo mapping, that is exactly the per-motor offset values.
+  attachServos();
+  moveSmooth(THETA1_OFFSET_DEG, THETA2_OFFSET_DEG);
 }
 
 void printHelp() {
-  Serial.println(F("CMDS: M x y | H | S | ?"));
+  Serial.println(F("CMDS: M x y | H | S | R | ?"));
 }
 
 void handleLine(char *line) {
@@ -169,6 +185,11 @@ void handleLine(char *line) {
     Serial.println(lastServo2Deg, 2);
     return;
   }
+  if (line[0] == 'R' || line[0] == 'r') {
+    releaseServos();
+    Serial.println(F("OK"));
+    return;
+  }
   if (line[0] == '?') {
     printHelp();
     return;
@@ -178,14 +199,10 @@ void handleLine(char *line) {
 
 void setup() {
   Serial.begin(115200);
-  servoLeft.attach(SERVO_PIN_LEFT);
-  servoRight.attach(SERVO_PIN_RIGHT);
+  // Do not attach servos here so a DTR reset on serial close leaves them
+  // released. They lazy-attach on the first move or home command.
   lastServo1Deg = THETA1_OFFSET_DEG;
   lastServo2Deg = THETA2_OFFSET_DEG;
-  servoLeft.write((int)round(lastServo1Deg));
-  servoRight.write((int)round(lastServo2Deg));
-  delay(500);
-  goHome();
   Serial.println(F("READY five_bar_ik"));
 }
 

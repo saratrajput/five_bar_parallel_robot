@@ -63,7 +63,15 @@ The `:cpu=atmega328old` variant is required for CH340 Nano clones, which ship wi
 python host/five_bar_client.py --port /dev/ttyUSB0
 ```
 
-Wait for the `READY five_bar_ik` banner, then use `move <x> <y>` to send a coordinate in millimetres, `home` to park at the home pose, `status` to read back servo angles, or `quit` to exit.
+Wait for the `READY five_bar_ik` banner, then use `move <x> <y>` to send a coordinate in millimetres, `home` to park at the home pose, `status` to read back servo angles, `release` to detach servos, or `quit` to exit. Quitting sends a release first, so the servos are de-energised when the client closes.
+
+### Calibration
+
+Home pose is both arms vertical, which corresponds to `THETA1_OFFSET_DEG` and `THETA2_OFFSET_DEG` (defaults 90°, 90°). Calibration aligns the physical arms to that definition.
+
+Mechanical step: power the board, send `home`, then with the servo still powered loosen each horn screw, lift the horn straight off the spline (do not rotate the shaft itself), align the arm to vertical, and re-seat the horn. Tighten and repeat for the other arm. The 21-tooth spline gives ~17° resolution per tooth, so this gets within ±8° of vertical. Pictures to be added.
+
+Software step: send `home`, observe the residual tilt, bump `THETA1_OFFSET_DEG` or `THETA2_OFFSET_DEG` by a few degrees, reflash, repeat. If the arm rotates the wrong way, flip the corresponding `THETA_SIGN` between `+1` and `-1`.
 
 ### Hardware notes
 
