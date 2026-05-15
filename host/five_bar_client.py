@@ -27,6 +27,9 @@ BASE_D = 77.144
 
 _HOME_XY = (0.0, math.sqrt(L2 * L2 - (BASE_D / 2.0) * (BASE_D / 2.0)) + L1)
 
+# Warn when a target lies within this many mm of any singularity.
+SINGULARITY_MARGIN_MM = 8.0
+
 
 def solve_ik(x, y):
     """Elbows-out IK. Returns (theta1, theta2) in radians or None if unreachable."""
@@ -74,6 +77,26 @@ def forward_kinematics(th1, th2):
     px, py = -dy / d, dx / d
     ee = (mx + h * px, my + h * py)
     return mL, eL, ee, eR, mR
+
+
+def singularity_clearance(x, y):
+    """Parallel-singularity clearance (mm) at target (x, y).
+
+    Returns the value h = sqrt(L2**2 - (d/2)**2), where d is the elbow
+    separation in the elbows-out IK pose. h goes to zero when the two distal
+    links become colinear — the type-II singularity where the mechanism loses
+    constraint and the motors can bind. Returns None if (x, y) is unreachable.
+
+    Serial-singularity (arm fully extended) is handled by solve_ik itself,
+    which returns None outside the reachable workspace.
+    """
+    sol = solve_ik(x, y)
+    if sol is None:
+        return None
+    th1, th2 = sol
+    _, eL, _, eR, _ = forward_kinematics(th1, th2)
+    d = math.hypot(eR[0] - eL[0], eR[1] - eL[1])
+    return math.sqrt(max(L2 * L2 - (d / 2.0) ** 2, 0.0))
 
 
 class SharedState:
@@ -141,6 +164,9 @@ def repl(ser, state=None):
             except ValueError:
                 print("usage: move <x> <y>")
                 continue
+            clear = singularity_clearance(x, y)
+            if clear is not None and clear < SINGULARITY_MARGIN_MM:
+                print(f"warn: near singularity (clearance {clear:.1f} mm)")
             reply = send(ser, f"M {x} {y}", serial_lock)
             if state and reply.startswith("OK"):
                 sol = solve_ik(x, y)
