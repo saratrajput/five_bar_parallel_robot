@@ -37,7 +37,7 @@ const uint8_t SERVO_PIN_RIGHT = 5;   // motor at (+BASE_D/2, 0)
 const float THETA1_OFFSET_DEG = 90.0;
 const float THETA2_OFFSET_DEG = 90.0;
 const int   THETA1_SIGN = +1;
-const int   THETA2_SIGN = -1;
+const int   THETA2_SIGN = +1;
 
 const int SERVO_MIN_DEG = 5;
 const int SERVO_MAX_DEG = 175;
