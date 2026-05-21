@@ -1,5 +1,7 @@
 # Five-Bar Parallel Robot
 
+![Five-bar parallel robot](images/20260516_234803.jpg)
+
 Inverse-kinematics control of a symmetric five-bar parallel robot driven by two SG90 servos on an Arduino Nano. The Arduino runs the IK solver; a small Python REPL on the host sends Cartesian targets over USB serial.
 
 ### Repository layout
