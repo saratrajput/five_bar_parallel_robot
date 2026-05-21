@@ -18,7 +18,7 @@ Python 3.12 is used to line up with ROS 2 Jazzy for future ROS integration. Crea
 ```
 uv venv ~/.uv/envs/five_bar --python 3.12
 source ~/.uv/envs/five_bar/bin/activate.fish
-uv pip install pyserial
+uv pip install pyserial matplotlib ipympl jupyter
 ```
 
 ### Serial port access
@@ -64,6 +64,14 @@ python host/five_bar_client.py --port /dev/ttyUSB0
 ```
 
 Wait for the `READY five_bar_ik` banner, then use `move <x> <y>` to send a coordinate in millimetres, `home` to park at the home pose, `status` to read back servo angles, `release` to detach servos, or `quit` to exit. Quitting sends a release first, so the servos are de-energised when the client closes.
+
+Pass `--plot` to open a live 2D matplotlib view of the full linkage that animates each move alongside the physical robot. The view is purely visual — the Arduino remains the source of truth for motion.
+
+For a notebook workflow (e.g. VS Code over a remote SSH connection), open `notebooks/five_bar_demo.ipynb`. It uses `%matplotlib widget` to animate the linkage in place while cells like `move(20, 50)` drive the physical robot.
+
+### Workspace and singularities
+
+The reachable workspace is bounded by two kinds of singularity. The outer boundary is the serial singularity where one arm reaches full extension (`r = L1 + L2`); the inverse-kinematics solver rejects targets past it as out of range. The inner boundary is the parallel (type-II) singularity where the two elbows splay to nearly maximum separation and the distal links become colinear — at that pose the mechanism loses constraint and the motors can bind. A practical safe zone for the current geometry is roughly `y ∈ [45, 72] mm` on the `x = 0` axis, narrowing off-axis. The host client and notebook compute the parallel-singularity clearance for every `move` and print `warn: near singularity (clearance <h> mm)` when it drops below `SINGULARITY_MARGIN_MM` (8 mm by default). The command is still sent — the warning exists so you can back off before the linkage stalls.
 
 ### Calibration
 
